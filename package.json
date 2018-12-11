@@ -1,0 +1,9 @@
+{
+  "name": "express-variations",
+  "version": "0.0.1",
+  "main": "src/index.js",
+  "license": "MIT",
+  "peerDependencies": {
+    "cookie-parser": "^1.4.3"
+  }
+}
