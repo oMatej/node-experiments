@@ -5,5 +5,9 @@
   "license": "MIT",
   "peerDependencies": {
     "cookie-parser": "^1.4.3"
+  },
+  "dependencies": {
+    "express-useragent": "^1.0.12",
+    "inbound": "^0.0.6"
   }
 }

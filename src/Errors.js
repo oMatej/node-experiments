@@ -9,11 +9,29 @@ Errors.CorruptedExperimentsConfig = class CorruptedExperimentsConfig extends Err
   }
 };
 
-Errors.CookieHandler = class CookieHandler extends Error {
+Errors.ExperimentError = class ExperimentError extends Error {
   constructor(message) {
     super();
     Error.captureStackTrace(this, this.constructor);
-    this.name = 'CookieHandler';
+    this.name = 'ExperimentError';
+    this.message = message;
+  }
+};
+
+Errors.RegisterExperimentError = class RegisterExperimentError extends Error {
+  constructor(message) {
+    super();
+    Error.captureStackTrace(this, this.constructor);
+    this.name = 'RegisterExperimentError';
+    this.message = message;
+  }
+};
+
+Errors.UnregisterExperimentError = class UnregisterExperimentError extends Error {
+  constructor(message) {
+    super();
+    Error.captureStackTrace(this, this.constructor);
+    this.name = 'UnregisterExperimentError';
     this.message = message;
   }
 };
