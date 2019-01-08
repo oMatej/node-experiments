@@ -1,13 +1,13 @@
 const inbound = require('inbound');
 const useragent = require('express-useragent');
 
-const { RegisterExperimentError, UnregisterExperimentError } = require('../../Errors');
+const { ExperimentError, RegisterExperimentError, UnregisterExperimentError } = require('../../Errors');
 
-const BaseExpress = require('../BaseExpress');
+const BaseExpress = require('./Base');
 
 const Experiment = require('./Experiment');
 
-class GoogleOptimizeExperiments extends BaseExpress {
+class GoogleOptimize extends BaseExpress {
   /**
    * @param {Object.<Experiment>} experiments
    * @param {BaseExperiment} options
@@ -24,15 +24,16 @@ class GoogleOptimizeExperiments extends BaseExpress {
     this._initialize(experiments);
 
     this.capture = this.capture.bind(this);
+    this.handle = this.handle.bind(this);
   }
 
   /**
    * @param {Object.<Experiment>} experiments
    * @param {BaseExperiment} options
-   * @returns {GoogleOptimizeExperiments}
+   * @returns {GoogleOptimize}
    */
   static init({ experiments, ...options }) {
-    return new GoogleOptimizeExperiments({ experiments, ...options });
+    return new GoogleOptimize({ experiments, ...options });
   }
 
   /**
@@ -43,11 +44,20 @@ class GoogleOptimizeExperiments extends BaseExpress {
   }
 
   /**
-   * @returns {Function[]}
+   * @returns {Object.<Experiment>}
    */
-  get middlewares() {
-    return Object.values(this._experiments)
-      .map(experiment => experiment.middleware);
+  get activeExperiments() {
+    return Object.entries(this.experiments)
+      .reduce((experiments, [ name, experiment ]) => {
+        if (experiment.isActive) {
+          return {
+            ...experiments,
+            [name]: experiment,
+          }
+        }
+
+        return experiments;
+      }, {});
   }
 
   _initialize(experiments) {
@@ -62,7 +72,7 @@ class GoogleOptimizeExperiments extends BaseExpress {
    */
   _parseReferrer(req) {
     const href = this._getRequestUrl(req);
-    const referrer = this._getReferrer(req);
+    const referrer = this._getRequestReferrer(req);
     return new Promise((resolve, reject) => inbound.referrer.parse(href, referrer, (e, details) => {
       if (e) {
         return reject(e);
@@ -88,6 +98,31 @@ class GoogleOptimizeExperiments extends BaseExpress {
   }
 
   /**
+   * Enable experiment by name.
+   * @param {String} name
+   */
+  enableExperiment(name) {
+    if (!this._experiments[name]) {
+      throw new ExperimentError(`Experiment with name ${name} is not registered.`);
+    }
+
+    this._experiments[name].enable();
+  }
+
+  /**
+   * Dusabke exoeriment by name.
+   * @param {String} name
+   */
+  disableExperiment(name) {
+    if (!this._experiments[name]) {
+      throw new ExperimentError(`Experiment with name ${name} is not registered.`);
+    }
+
+    this._experiments[name].disable();
+  }
+
+  /**
+   * Register new experiment with `name` and `config`. If experiment already exists override its configuration.
    * @param {String} name
    * @param {Object} config
    */
@@ -100,16 +135,9 @@ class GoogleOptimizeExperiments extends BaseExpress {
       throw new RegisterExperimentError('[config] parameter have to be defined as an object during registering an experiment.');
     }
 
-    const options = {
-      clearCookie: this._clearCookie,
-      getSelectors: this._getRequestSelectors,
-      setExperiment: this._setExperiment
-    };
-
-    const experiment = new Experiment({ name, versions: this._VERSIONS, ...config });
-    experiment.createMiddleware(options);
-
-    this._experiments[name] = experiment;
+    this._experiments[name] = new Experiment({ name, ...config }, {
+      isVersionSupported: this.isVersionSupported,
+    });
   }
 
   /**
@@ -120,11 +148,8 @@ class GoogleOptimizeExperiments extends BaseExpress {
       throw new UnregisterExperimentError('[name] parameter have to be defined during unregistering an experiment.');
     }
 
-    if (!this._experiments[name]) {
-      throw new UnregisterExperimentError(`Experiment with name ${name} is not registered.`);
-    }
-
-    this._experiments[name].disable();
+    this.disableExperiment(name);
+    delete this._experiments[name];
   }
 
   /**
@@ -135,14 +160,15 @@ class GoogleOptimizeExperiments extends BaseExpress {
    */
   async capture(req, res, next) {
     const version = this.getVersion(req) || this._DEFAULT_VERSION;
+
     try {
       const selectors = await this.captureSelector(req, res);
 
-      this._setExperimentRequest(req, { selectors, version });
+      this._setRequestExperimentObject(req, { selectors, version });
 
       return next();
     } catch (e) {
-      this._setExperimentRequest(req, { version });
+      this._setRequestExperimentObject(req, { version });
       return next();
     }
   }
@@ -162,14 +188,41 @@ class GoogleOptimizeExperiments extends BaseExpress {
     }
   }
 
-  /**
-   * @param {Object} app
-   */
-  enableExperiments(app) {
-    this.middlewares.forEach(
-      middleware => app.all('*', middleware)
-    );
+  handle() {
+    const preselect = (req, res, next) => {
+      console.log('### PRESELECTING VERSION ###');
+      return next();
+    };
+
+    const experiments = (req, res, next) => {
+      const selectors = this._getRequestExperimentSelectors(req);
+
+      const experiment = Object.values(this.activeExperiments).find(
+        e => e.isMatchExperiment(selectors)
+      );
+
+      if (!experiment) {
+        return next();
+      }
+
+      const variantId = experiment.getVariantId();
+
+      if (variantId !== -1) {
+        const version = experiment.getVersionByVariantId(variantId);
+
+        console.log({ experiment, version, variantId });
+
+        this._setExperiment(req, res, {
+          experiment: experiment.name, googleId: experiment.googleId, variantId, version,
+        });
+      }
+
+
+      return next();
+    };
+
+    return [ preselect, experiments ];
   }
 }
 
-module.exports = GoogleOptimizeExperiments;
+module.exports = GoogleOptimize;

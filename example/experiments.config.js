@@ -29,7 +29,7 @@ module.exports = {
     ]
   },
   chromeTest: {
-    active: true,
+    active: false,
     googleId: '### chromeTestId ###',
     selectors: {
       browser: 'Chrome',
@@ -40,7 +40,7 @@ module.exports = {
         weight: 0.5,
       },
       {
-        name: 'V2',
+        name: 'V6',
         weight: 0.3,
       },
       {
@@ -54,7 +54,7 @@ module.exports = {
     ]
   },
   firefoxTest: {
-    active: false,
+    active: true,
     googleId: '### firefoxTestId ###',
     selectors: {
       browser: 'Firefox',

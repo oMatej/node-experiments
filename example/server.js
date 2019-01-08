@@ -33,14 +33,14 @@ app.use(experimentsService.capture);
  * Enable Express middlewares for each experiment.
  */
 
-experimentsService.enableExperiments(app);
+app.all('*', experimentsService.handle());
 
 /**
  * EXPERIMENTS object stored inside Express req.
  */
 
 app.use((req, res, next) => {
-  const { EXPERIMENTS } = req;
+  const { EXPERIMENTS: { selectors, ...EXPERIMENTS } } = req;
   console.log({ EXPERIMENTS });
   return next();
 });
@@ -61,6 +61,12 @@ app.use(experimentsService.filterToVersion('V2', (req, res, next) => {
 app.get('/disable/:name', (req, res) => {
   const { name } = req.params;
   experimentsService.unregisterExperiment(name);
+  return res.sendStatus(200);
+});
+
+app.get('/enable/:name', (req, res) => {
+  const { name } = req.params;
+  experimentsService.enableExperiment(name);
   return res.sendStatus(200);
 });
 

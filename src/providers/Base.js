@@ -1,10 +1,8 @@
-const COOKIE_KEY = 'AB_EXPERIMENT';
-const QUERY_KEY = 'v';
-const REQUEST_KEY = 'EXPERIMENTS';
+const { COOKIE_KEY, MAX_AGE, PATH, QUERY_KEY, REQUEST_KEY } = require('../constants');
 
 const COOKIES_DEFAULT_OPTIONS = {
-  maxAge: 1000 * 60 * 60 * 14,
-  path: '/',
+  maxAge: MAX_AGE,
+  path: PATH,
 };
 
 /**

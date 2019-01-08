@@ -1,6 +1,6 @@
-const BaseExperiments = require('./Base');
+const BaseExperiments = require('../Base');
 
-class BaseExpress extends BaseExperiments {
+class Base extends BaseExperiments {
   /**
    * @param {BaseExperiment} options
    */
@@ -8,14 +8,14 @@ class BaseExpress extends BaseExperiments {
     super(options);
 
     this._clearCookie = this._clearCookie.bind(this);
-    this._getRequestSelectors = this._getRequestSelectors.bind(this);
+    this._getRequestExperimentSelectors = this._getRequestExperimentSelectors.bind(this);
     this._setExperiment = this._setExperiment.bind(this);
   }
 
   /**
    * @param {Object} req
    * @param {Object} req.cookies
-   * @returns {Object|void}
+   * @returns {Object}
    * @private
    */
   _getCookie(req) {
@@ -48,7 +48,7 @@ class BaseExpress extends BaseExperiments {
    * @returns {Object}
    * @private
    */
-  _getExperimentReq(req) {
+  _getRequestExperimentObject(req) {
     return req[this._REQUEST_KEY] || {};
   }
 
@@ -57,8 +57,8 @@ class BaseExpress extends BaseExperiments {
    * @returns {Object}
    * @protected
    */
-  _getRequestSelectors(req) {
-    const { selectors } = this._getExperimentReq(req);
+  _getRequestExperimentSelectors(req) {
+    const { selectors } = this._getRequestExperimentObject(req);
     return selectors || {};
   }
 
@@ -76,16 +76,16 @@ class BaseExpress extends BaseExperiments {
   /**
    * @param {Object} req
    * @returns {String}
-   * @private
+   * @protected
    */
-  _getReferrer(req) {
+  _getRequestReferrer(req) {
     return req.get('Referrer') || req.get('Referer') || '';
   }
 
   /**
    * @param {Object} req
    * @returns {String}
-   * @private
+   * @protected
    */
   _getRequestUrl(req) {
     return req.url;
@@ -94,7 +94,7 @@ class BaseExpress extends BaseExperiments {
   /**
    * @param {Object} req
    * @returns {Headers | string | HeadersInit | * | string[]}
-   * @private
+   * @protected
    */
   _getRequestUserAgent(req) {
     return req.headers && req.headers['user-agent'];
@@ -106,7 +106,7 @@ class BaseExpress extends BaseExperiments {
    * @private
    */
   _getRequestVersion(req) {
-    const { version } = this._getExperimentReq(req);
+    const { version } = this._getRequestExperimentObject(req);
 
     return this.isVersionSupported(version) && version;
   }
@@ -121,7 +121,9 @@ class BaseExpress extends BaseExperiments {
    */
   _setCookie(res, value, options = this._COOKIES_OPTIONS) {
     try {
-      res.cookie(this._COOKIE_KEY, JSON.stringify(value), { ...this._COOKIES_DEFAULT_OPTIONS, ...options });
+      const mergedOptions = { ...this._COOKIES_DEFAULT_OPTIONS, ...options };
+
+      res.cookie(this._COOKIE_KEY, JSON.stringify(value), mergedOptions);
     } catch (e) {}
   }
 
@@ -133,8 +135,8 @@ class BaseExpress extends BaseExperiments {
    * @param {String} version
    * @protected
    */
-  _setExperiment(req, res, { experiment, version, ...options }) {
-    this._setExperimentRequest(req, { experiment, version, ...options });
+  _setExperiment(req, res, { experiment, version = this._DEFAULT_VERSION, ...options }) {
+    this._setRequestExperimentObject(req, { experiment, version, ...options });
     this._setCookie(res, { experiment, version });
   }
 
@@ -144,11 +146,13 @@ class BaseExpress extends BaseExperiments {
    * @returns {Object|void}
    * @protected
    */
-  _setExperimentRequest(req, state = {}) {
+  _setRequestExperimentObject(req, state = {}) {
     try {
-      const previousState = this._getExperimentReq(req);
+      const previousState = this._getRequestExperimentObject(req);
       const nextState = { ...previousState, ...state };
+
       req[this._REQUEST_KEY] = nextState;
+
       return nextState;
     } catch (e) {}
   }
@@ -197,4 +201,4 @@ class BaseExpress extends BaseExperiments {
   }
 }
 
-module.exports = BaseExpress;
+module.exports = Base;
